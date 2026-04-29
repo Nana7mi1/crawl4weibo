@@ -235,8 +235,8 @@ class TestPostsWithComments:
                 "data": {
                     "id": "123",
                     "bid": "ABC",
-                    "user": {"id": "456"},
-                    "text": "Single post",
+                    "user": {"id": "456", "screen_name": "OriginalAuthor"},
+                    "text": "Single <br />post",
                 },
             },
         )
@@ -266,6 +266,9 @@ class TestPostsWithComments:
         )
 
         assert post.bid == "ABC"
+        assert post.screen_name == "OriginalAuthor"
+        assert post.text == "Single post"
+        assert post.text_raw == "Single <br />post"
         assert len(post.comments) == 1
         assert post.comments[0].text == "Nice post"
 

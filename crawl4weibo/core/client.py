@@ -7,7 +7,7 @@ Weibo Crawler Client - Based on successfully tested code
 import random
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 import requests
 

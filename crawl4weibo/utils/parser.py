@@ -207,11 +207,15 @@ class WeiboParser:
 
     def _parse_single_post(self, mblog: dict[str, Any]) -> dict[str, Any] | None:
         try:
+            user_data = mblog.get("user", {})
+            raw_text = mblog.get("text", "")
             post = {
                 "id": str(mblog.get("id", "")),
                 "bid": str(mblog.get("bid", "")),
-                "user_id": str(mblog.get("user", {}).get("id", "")),
-                "text": self._clean_text(mblog.get("text", "")),
+                "user_id": str(user_data.get("id", "")),
+                "screen_name": user_data.get("screen_name", ""),
+                "text": self._clean_text(raw_text),
+                "text_raw": raw_text,
                 "created_at": self._parse_time(mblog.get("created_at", "")),
                 "source": mblog.get("source", ""),
                 "reposts_count": mblog.get("reposts_count", 0),
@@ -222,8 +226,8 @@ class WeiboParser:
                 "video_urls": self._extract_video_urls(mblog),
                 "is_original": not mblog.get("retweeted_status"),
                 "location": mblog.get("geo", {}).get("name", ""),
-                "topic_ids": self._extract_topics(mblog.get("text", "")),
-                "at_users": self._extract_at_users(mblog.get("text", "")),
+                "topic_ids": self._extract_topics(raw_text),
+                "at_users": self._extract_at_users(raw_text),
                 "is_long_text": mblog.get("isLongText", False),
             }
 
