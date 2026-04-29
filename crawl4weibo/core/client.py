@@ -594,6 +594,7 @@ class WeiboClient:
                 try:
                     long_post = self.get_post_by_bid(post.bid)
                     post.text = long_post.text
+                    post.text_raw = long_post.text_raw
                     post.pic_urls = long_post.pic_urls
                     post.video_url = long_post.video_url
                     post.video_urls = long_post.video_urls
@@ -1268,3 +1269,105 @@ class WeiboClient:
         )
 
         return posts
+
+    @rate_limit()
+    def get_uid_by_screen_name(
+        self, screen_name: str, use_proxy: bool = True
+    ) -> Optional[str]:
+        """
+        Get user UID by screen name (username) using mobile Weibo redirect.
+
+        This method exploits the redirect mechanism of mobile Weibo:
+        When accessing https://m.weibo.cn/n/{screen_name}, it redirects to
+        https://m.weibo.cn/u/{uid}, from which we can extract the UID.
+
+        Args:
+            screen_name: Weibo username (screen name)
+            use_proxy: Whether to use proxy, default True
+
+        Returns:
+            User UID as string, or None if not found or failed
+
+        Example:
+            >>> client = WeiboClient()
+            >>> uid = client.get_uid_by_screen_name("StarGazerOfficial")
+            >>> print(uid)  # e.g., "8389958184"
+        """
+        import re
+
+        url = f"https://m.weibo.cn/n/{screen_name}"
+
+        # Use mobile browser headers for this request
+        headers = {
+            "User-Agent": (
+                "Mozilla/5.0 (iPhone; CPU iPhone OS 16_6 like Mac OS X) "
+                "AppleWebKit/605.1.15 (KHTML, like Gecko) "
+                "Version/16.6 Mobile/15E148 Safari/604.1"
+            ),
+            "Accept": (
+                "text/html,application/xhtml+xml,application/xml;q=0.9,"
+                "image/avif,image/webp,image/apng,*/*;q=0.8,"
+                "application/signed-exchange;v=b3;q=0.7"
+            ),
+            "Accept-Language": "zh-CN,zh;q=0.9",
+            "Sec-Fetch-Dest": "document",
+            "Sec-Fetch-Mode": "navigate",
+            "Sec-Fetch-Site": "none",
+            "Sec-Fetch-User": "?1",
+            "Upgrade-Insecure-Requests": "1",
+        }
+
+        # Get proxy if enabled
+        proxies = None
+        if use_proxy and self.proxy_pool and self.proxy_pool.is_enabled():
+            proxies = self.proxy_pool.get_proxy()
+            if proxies:
+                self.logger.debug(f"Using proxy for screen_name lookup: {proxies.get('http')}")
+
+        try:
+            # Make request following all redirects
+            response = self.session.get(
+                url,
+                headers=headers,
+                proxies=proxies,
+                allow_redirects=True,
+                timeout=10,
+            )
+
+            self.logger.debug(
+                f"Screen name lookup: {screen_name} -> Final URL: {response.url}"
+            )
+
+            # Extract UID from final URL (format: https://m.weibo.cn/u/8389958184)
+            match = re.search(r"/u/(\d+)", response.url)
+            if match:
+                uid = match.group(1)
+                self.logger.info(
+                    f"Found UID for '{screen_name}': {uid}"
+                )
+                return uid
+
+            # Check if redirected to login page
+            if "passport" in response.url or "login" in response.url:
+                self.logger.warning(
+                    f"Login required to look up screen name: {screen_name}"
+                )
+                return None
+
+            # If URL didn't change, user might not exist
+            if response.url == url or screen_name in response.url:
+                self.logger.warning(
+                    f"User not found or no redirect for screen name: {screen_name}"
+                )
+                return None
+
+            self.logger.warning(
+                f"Could not extract UID from URL: {response.url}"
+            )
+            return None
+
+        except requests.exceptions.RequestException as e:
+            self.logger.error(
+                f"Request failed for screen name lookup '{screen_name}': {e}"
+            )
+            return None

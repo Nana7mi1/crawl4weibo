@@ -19,7 +19,9 @@ class Post:
     id: str
     bid: str
     user_id: str
+    screen_name: str = ""
     text: str = ""
+    text_raw: str = ""
     created_at: datetime | None = None
     source: str = ""
     reposts_count: int = 0
@@ -55,7 +57,9 @@ class Post:
             "id": str(data.get("id", "")),
             "bid": data.get("bid", ""),
             "user_id": str(data.get("user_id", "")),
+            "screen_name": data.get("user", {}).get("screen_name", "") if data.get("user") else data.get("screen_name", ""),
             "text": data.get("text", ""),
+            "text_raw": data.get("text_raw", ""),
             "created_at": data.get("created_at"),
             "source": data.get("source", ""),
             "reposts_count": data.get("reposts_count", 0),
@@ -85,6 +89,7 @@ class Post:
         result = {
             "id": self.id,
             "user_id": self.user_id,
+            "screen_name": self.screen_name,
             "text": self.text,
             "created_at": self.created_at,
             "source": self.source,
@@ -98,6 +103,7 @@ class Post:
             "location": self.location,
             "topic_ids": self.topic_ids,
             "at_users": self.at_users,
+            "text_raw": self.text_raw,
         }
 
         if self.retweeted_status:
